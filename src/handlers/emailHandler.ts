@@ -1,77 +1,79 @@
 import { createId } from "@paralleldrive/cuid2";
 import PostalMime from "postal-mime";
-import { ATTACHMENT_LIMITS } from "@/config/constants";
+// R2 storage disabled - uncomment to enable attachments
+// import { ATTACHMENT_LIMITS } from "@/config/constants";
 import * as db from "@/database/d1";
-import * as r2 from "@/database/r2";
+// import * as r2 from "@/database/r2";
 import { emailSchema } from "@/schemas/emails";
 import { now } from "@/utils/helpers";
 import { processEmailContent } from "@/utils/mail";
 import { PerformanceTimer } from "@/utils/performance";
 
-// Type for PostalMime attachments
-interface EmailAttachment {
-	filename: string | null;
-	mimeType?: string;
-	content?: string | ArrayBuffer;
-}
+// R2 storage disabled - uncomment to enable attachments
+// // Type for PostalMime attachments
+// interface EmailAttachment {
+// 	filename: string | null;
+// 	mimeType?: string;
+// 	content?: string | ArrayBuffer;
+// }
 
-/**
- * Validate and filter email attachments
- */
-function validateAttachments(attachments: EmailAttachment[], emailId: string): EmailAttachment[] {
-	const validAttachments = [];
-	let totalAttachmentSize = 0;
+// /**
+//  * Validate and filter email attachments
+//  */
+// function validateAttachments(attachments: EmailAttachment[], emailId: string): EmailAttachment[] {
+// 	const validAttachments = [];
+// 	let totalAttachmentSize = 0;
 
-	for (const attachment of attachments) {
-		// Skip attachments without filename
-		if (!attachment.filename) {
-			console.warn(`Email ${emailId}: Attachment without filename, skipping`);
-			continue;
-		}
+// 	for (const attachment of attachments) {
+// 		// Skip attachments without filename
+// 		if (!attachment.filename) {
+// 			console.warn(`Email ${emailId}: Attachment without filename, skipping`);
+// 			continue;
+// 		}
 
-		if (validAttachments.length >= ATTACHMENT_LIMITS.MAX_COUNT_PER_EMAIL) {
-			console.warn(`Email ${emailId}: Too many attachments, skipping remaining`);
-			break;
-		}
+// 		if (validAttachments.length >= ATTACHMENT_LIMITS.MAX_COUNT_PER_EMAIL) {
+// 			console.warn(`Email ${emailId}: Too many attachments, skipping remaining`);
+// 			break;
+// 		}
 
-		const attachmentSize =
-			attachment.content instanceof ArrayBuffer
-				? attachment.content.byteLength
-				: new TextEncoder().encode(attachment.content || "").byteLength;
+// 		const attachmentSize =
+// 			attachment.content instanceof ArrayBuffer
+// 				? attachment.content.byteLength
+// 				: new TextEncoder().encode(attachment.content || "").byteLength;
 
-		// Check file type
-		const contentType = attachment.mimeType || "application/octet-stream";
-		if (
-			!ATTACHMENT_LIMITS.ALLOWED_TYPES.includes(
-				contentType as (typeof ATTACHMENT_LIMITS.ALLOWED_TYPES)[number],
-			)
-		) {
-			console.warn(
-				`Email ${emailId}: Attachment ${attachment.filename} has unsupported type (${contentType}), skipping`,
-			);
-			continue;
-		}
+// 		// Check file type
+// 		const contentType = attachment.mimeType || "application/octet-stream";
+// 		if (
+// 			!ATTACHMENT_LIMITS.ALLOWED_TYPES.includes(
+// 				contentType as (typeof ATTACHMENT_LIMITS.ALLOWED_TYPES)[number],
+// 			)
+// 		) {
+// 			console.warn(
+// 				`Email ${emailId}: Attachment ${attachment.filename} has unsupported type (${contentType}), skipping`,
+// 			);
+// 			continue;
+// 		}
 
-		if (attachmentSize > ATTACHMENT_LIMITS.MAX_SIZE) {
-			console.warn(
-				`Email ${emailId}: Attachment ${attachment.filename} too large (${attachmentSize} bytes), skipping`,
-			);
-			continue;
-		}
+// 		if (attachmentSize > ATTACHMENT_LIMITS.MAX_SIZE) {
+// 			console.warn(
+// 				`Email ${emailId}: Attachment ${attachment.filename} too large (${attachmentSize} bytes), skipping`,
+// 			);
+// 			continue;
+// 		}
 
-		totalAttachmentSize += attachmentSize;
-		if (totalAttachmentSize > ATTACHMENT_LIMITS.MAX_SIZE * ATTACHMENT_LIMITS.MAX_COUNT_PER_EMAIL) {
-			console.warn(
-				`Email ${emailId}: Total attachment size too large, skipping remaining attachments`,
-			);
-			break;
-		}
+// 		totalAttachmentSize += attachmentSize;
+// 		if (totalAttachmentSize > ATTACHMENT_LIMITS.MAX_SIZE * ATTACHMENT_LIMITS.MAX_COUNT_PER_EMAIL) {
+// 			console.warn(
+// 				`Email ${emailId}: Total attachment size too large, skipping remaining attachments`,
+// 			);
+// 			break;
+// 		}
 
-		validAttachments.push(attachment);
-	}
+// 		validAttachments.push(attachment);
+// 	}
 
-	return validAttachments;
-}
+// 	return validAttachments;
+// }
 
 /**
  * Cloudflare email router handler - optimized version
@@ -92,9 +94,9 @@ export async function handleEmail(
 			email.text ?? null,
 		);
 
-		// Process attachments
-		const attachments = email.attachments || [];
-		const validAttachments = validateAttachments(attachments, emailId);
+		// R2 storage disabled - attachments not processed
+		// const attachments = email.attachments || [];
+		// const validAttachments = validateAttachments(attachments, emailId);
 
 		const emailData = emailSchema.parse({
 			id: emailId,
@@ -104,8 +106,8 @@ export async function handleEmail(
 			received_at: now(),
 			html_content: htmlContent,
 			text_content: textContent,
-			has_attachments: validAttachments.length > 0,
-			attachment_count: validAttachments.length,
+			has_attachments: false, // R2 disabled
+			attachment_count: 0, // R2 disabled
 		});
 
 		// Insert email
@@ -115,10 +117,10 @@ export async function handleEmail(
 			throw new Error(`Failed to insert email: ${error}`);
 		}
 
-		// Process and store attachments
-		if (validAttachments.length > 0) {
-			ctx.waitUntil(processAttachments(env, emailId, validAttachments as EmailAttachment[]));
-		}
+		// R2 storage disabled - uncomment to enable attachments
+		// if (validAttachments.length > 0) {
+		// 	ctx.waitUntil(processAttachments(env, emailId, validAttachments as EmailAttachment[]));
+		// }
 
 		timer.end(); // Log processing time
 	} catch (error) {
@@ -127,83 +129,84 @@ export async function handleEmail(
 	}
 }
 
-/**
- * Process a single attachment
- */
-async function processSingleAttachment(
-	env: CloudflareBindings,
-	emailId: string,
-	attachment: EmailAttachment,
-): Promise<void> {
-	// Skip attachments without filename
-	if (!attachment.filename) {
-		console.warn(`Skipping attachment without filename in email ${emailId}`);
-		return;
-	}
+// R2 storage disabled - uncomment to enable attachments
+// /**
+//  * Process a single attachment
+//  */
+// async function processSingleAttachment(
+// 	env: CloudflareBindings,
+// 	emailId: string,
+// 	attachment: EmailAttachment,
+// ): Promise<void> {
+// 	// Skip attachments without filename
+// 	if (!attachment.filename) {
+// 		console.warn(`Skipping attachment without filename in email ${emailId}`);
+// 		return;
+// 	}
 
-	const attachmentId = createId();
+// 	const attachmentId = createId();
 
-	let content: ArrayBuffer;
-	let attachmentSize: number;
+// 	let content: ArrayBuffer;
+// 	let attachmentSize: number;
 
-	if (attachment.content instanceof ArrayBuffer) {
-		content = attachment.content;
-		attachmentSize = content.byteLength;
-	} else {
-		const encodedContent = new TextEncoder().encode(attachment.content || "");
-		content = encodedContent.buffer as ArrayBuffer;
-		attachmentSize = encodedContent.byteLength;
-	}
+// 	if (attachment.content instanceof ArrayBuffer) {
+// 		content = attachment.content;
+// 		attachmentSize = content.byteLength;
+// 	} else {
+// 		const encodedContent = new TextEncoder().encode(attachment.content || "");
+// 		content = encodedContent.buffer as ArrayBuffer;
+// 		attachmentSize = encodedContent.byteLength;
+// 	}
 
-	// Generate R2 key
-	const r2Key = r2.generateR2Key(emailId, attachmentId, attachment.filename);
+// 	// Generate R2 key
+// 	const r2Key = r2.generateR2Key(emailId, attachmentId, attachment.filename);
 
-	// Store in R2
-	const { success: r2Success, error: r2Error } = await r2.storeAttachment(
-		env.R2,
-		r2Key,
-		content,
-		attachment.mimeType || "application/octet-stream",
-		attachment.filename,
-	);
+// 	// Store in R2
+// 	const { success: r2Success, error: r2Error } = await r2.storeAttachment(
+// 		env.R2,
+// 		r2Key,
+// 		content,
+// 		attachment.mimeType || "application/octet-stream",
+// 		attachment.filename,
+// 	);
 
-	if (!r2Success) {
-		console.error(`Failed to store attachment ${attachment.filename}:`, r2Error);
-		return;
-	}
+// 	if (!r2Success) {
+// 		console.error(`Failed to store attachment ${attachment.filename}:`, r2Error);
+// 		return;
+// 	}
 
-	// Store metadata in database
-	const attachmentData = {
-		id: attachmentId,
-		email_id: emailId,
-		filename: attachment.filename,
-		content_type: attachment.mimeType || "application/octet-stream",
-		size: attachmentSize,
-		r2_key: r2Key,
-		created_at: now(),
-	};
+// 	// Store metadata in database
+// 	const attachmentData = {
+// 		id: attachmentId,
+// 		email_id: emailId,
+// 		filename: attachment.filename,
+// 		content_type: attachment.mimeType || "application/octet-stream",
+// 		size: attachmentSize,
+// 		r2_key: r2Key,
+// 		created_at: now(),
+// 	};
 
-	const { success: dbSuccess, error: dbError } = await db.insertAttachment(env.D1, attachmentData);
-	if (!dbSuccess) {
-		console.error(`Failed to store attachment metadata for ${attachment.filename}:`, dbError);
-		// Try to clean up R2 object
-		await r2.deleteAttachment(env.R2, r2Key);
-	}
-}
+// 	const { success: dbSuccess, error: dbError } = await db.insertAttachment(env.D1, attachmentData);
+// 	if (!dbSuccess) {
+// 		console.error(`Failed to store attachment metadata for ${attachment.filename}:`, dbError);
+// 		// Try to clean up R2 object
+// 		await r2.deleteAttachment(env.R2, r2Key);
+// 	}
+// }
 
-/**
- * Process and store email attachments
- */
-async function processAttachments(
-	env: CloudflareBindings,
-	emailId: string,
-	attachments: EmailAttachment[],
-) {
-	try {
-		for (const attachment of attachments) {
-			await processSingleAttachment(env, emailId, attachment);
-		}
-	} catch (error) {
-		console.error("Failed to process attachments:", error);
-	}
-}
+// /**
+//  * Process and store email attachments
+//  */
+// async function processAttachments(
+// 	env: CloudflareBindings,
+// 	emailId: string,
+// 	attachments: EmailAttachment[],
+// ) {
+// 	try {
+// 		for (const attachment of attachments) {
+// 			await processSingleAttachment(env, emailId, attachment);
+// 		}
+// 	} catch (error) {
+// 		console.error("Failed to process attachments:", error);
+// 	}
+// }

@@ -2,8 +2,8 @@
 
 export const DOMAINS = [
 	{
-		owner: "vwh",
-		domain: "barid.site",
+		owner: "sanctious",
+		domain: "seraph.click",
 	},
 ] satisfies {
 	owner: string;

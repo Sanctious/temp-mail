@@ -1,9 +1,10 @@
+// R2 storage disabled - this entire file is not used when R2 is disabled
 // External imports
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 // Database imports
 import { createDatabaseService } from "@/database";
-import * as r2 from "@/database/r2";
+// import * as r2 from "@/database/r2";
 
 // Schema imports
 import {

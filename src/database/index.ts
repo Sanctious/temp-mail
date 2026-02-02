@@ -5,5 +5,6 @@ export function createDatabaseService(db: D1Database) {
 }
 
 export * from "./d1";
-export * from "./r2";
+// R2 storage disabled - uncomment to enable attachments
+// export * from "./r2";
 export * from "./service";
