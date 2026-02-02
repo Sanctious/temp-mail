@@ -21,6 +21,16 @@ A simple and fast temporary email service that allows you to receive emails with
 - Real-time email retrieval
 - No registration required
 - Automatic cleanup
+- **API Key Authentication** for programmatic inbox access
+
+## Authentication
+
+### Master Key (Admin)
+Used for managing API keys. Pass via \`X-Master-Key\` header.
+
+### API Key (Full Access)
+Used for programmatic access to all emails. Pass via \`X-API-Key\` header.
+API keys have full access to all email endpoints and can have expiration dates.
 
 ## Response Format
 - **Success responses** include \`success: true\` and a \`result\` field
@@ -64,9 +74,28 @@ ${`\n${Array.from(DOMAINS_SET)
 				name: "Domains",
 				description: "Get information about supported email domains",
 			},
+			{
+				name: "API Keys",
+				description: "API key management (requires master key authentication)",
+			},
 		],
 		"x-repository": "https://github.com/vwh/temp-mail",
 		"x-issues": "https://github.com/vwh/temp-mail/issues",
+	});
+
+	// Register security schemes
+	app.openAPIRegistry.registerComponent("securitySchemes", "masterKey", {
+		type: "apiKey",
+		in: "header",
+		name: "X-Master-Key",
+		description: "Master key for API key management operations",
+	});
+
+	app.openAPIRegistry.registerComponent("securitySchemes", "apiKey", {
+		type: "apiKey",
+		in: "header",
+		name: "X-API-Key",
+		description: "API key for inbox access",
 	});
 
 	// Swagger UI - Traditional documentation

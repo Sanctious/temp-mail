@@ -8,21 +8,39 @@ AI-made web client: [https://web.barid.site](https://web.barid.site)
 
 ## Table of Contents
 
-*   [Features](#features)
-*   [Supporters](#supporters)
-*   [Community](#community-built-stuff)
-*   [Setup Guide](#setup-guide)
-    *   [Prerequisites](#prerequisites)
-    *   [Project Setup](#project-setup)
-    *   [Cloudflare Configuration](#cloudflare-configuration)
-        *   [D1 Database Setup](#d1-database-setup)
-        *   [R2 Bucket Setup](#r2-bucket-setup)
-        *   [Email Routing Setup](#email-routing-setup)
-*   [Running the Worker](#running-the-worker)
-    *   [Cloudflare Information Script (Optional)](#cloudflare-information-script-optional)
-    *   [Telegram Logging (Optional)](#telegram-logging-optional)
-    *   [Local Development](#local-development)
-    *   [Deployment](#deployment)
+- [Temp Mail Worker](#temp-mail-worker)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Supporters](#supporters)
+    - [How to Donate a Domain](#how-to-donate-a-domain)
+  - [Community](#community)
+  - [Setup Guide](#setup-guide)
+    - [Prerequisites](#prerequisites)
+    - [Project Setup](#project-setup)
+    - [Cloudflare Configuration](#cloudflare-configuration)
+      - [D1 Database Setup](#d1-database-setup)
+      - [R2 Bucket Setup](#r2-bucket-setup)
+      - [Email Routing Setup](#email-routing-setup)
+  - [Running the Worker](#running-the-worker)
+    - [Cloudflare Information Script (Optional)](#cloudflare-information-script-optional)
+    - [Telegram Logging (Optional)](#telegram-logging-optional)
+    - [API Key Authentication (Optional)](#api-key-authentication-optional)
+      - [Setup](#setup)
+      - [Authentication Headers](#authentication-headers)
+    - [Local Development](#local-development)
+    - [Deployment](#deployment)
+  - [Available Scripts](#available-scripts)
+    - [Development \& Deployment](#development--deployment)
+    - [Database Management](#database-management)
+    - [Storage Setup](#storage-setup)
+    - [Code Quality](#code-quality)
+    - [Utilities](#utilities)
+  - [API Endpoints](#api-endpoints)
+    - [Email Endpoints](#email-endpoints)
+    - [Attachment Endpoints](#attachment-endpoints)
+    - [API Key Management Endpoints](#api-key-management-endpoints)
+    - [Attachment Features](#attachment-features)
+    - [Health Check](#health-check)
 
 ---
 
@@ -31,6 +49,7 @@ AI-made web client: [https://web.barid.site](https://web.barid.site)
 *   Receives emails via Cloudflare Email Routing.
 *   Stores email data in a Cloudflare D1 database.
 *   **Attachment Support**: Stores email attachments up to 50MB in Cloudflare R2.
+*   **API Key Authentication**: Secure programmatic access to specific inboxes.
 *   Provides comprehensive API endpoints for emails and attachments.
 *   Automatically cleans up old emails and attachments.
 *   Supports multiple file types including documents, images, and archives.
@@ -176,6 +195,32 @@ If you wish to enable Telegram logging for your worker, follow these steps:
     bun wrangler secret put TELEGRAM_CHAT_ID
     ```
 
+### API Key Authentication (Optional)
+
+API keys allow secure programmatic access to all emails. See the [API documentation](https://api.barid.site) for endpoint details and examples.
+
+#### Setup
+
+1.  **Generate and set the Master Key**:
+    ```bash
+    openssl rand -hex 32
+    bun wrangler secret put MASTER_KEY
+    ```
+
+2.  **Apply the API Keys Table**:
+    ```bash
+    bun run db:api-keys
+    ```
+
+#### Authentication Headers
+
+| Header | Purpose |
+|--------|---------|
+| `X-Master-Key` | Admin access for managing API keys (create, list, revoke, delete) |
+| `X-API-Key` | Full access to all email endpoints |
+
+> ⚠️ **Important**: The API key secret is only shown once upon creation. Store it securely!
+
 ### Local Development
 
 To run worker locally:
@@ -203,7 +248,7 @@ bun run deploy
 - `bun run db:create` - Create D1 database
 - `bun run db:tables` - Apply database schema
 - `bun run db:indexes` - Apply database indexes
-- `bun run db:migrate-attachments` - Add attachment support to existing database
+- `bun run db:api-keys` - Apply API keys table schema
 
 ### Storage Setup
 - `bun run r2:create` - Create R2 bucket for attachments
@@ -237,6 +282,18 @@ bun run deploy
 - `GET /inbox/{emailId}/attachments` - Get attachments for a specific email
 - `GET /attachments/{attachmentId}` - Download a specific attachment
 - `DELETE /attachments/{attachmentId}` - Delete a specific attachment
+
+### API Key Management Endpoints
+
+All endpoints require the `X-Master-Key` header.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api-keys` | Create a new API key |
+| `GET` | `/api-keys` | List all API keys |
+| `GET` | `/api-keys/{keyId}` | Get API key details |
+| `DELETE` | `/api-keys/{keyId}` | Delete an API key |
+| `POST` | `/api-keys/{keyId}/revoke` | Revoke an API key |
 
 ### Attachment Features
 

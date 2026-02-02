@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 // R2 storage disabled - uncomment to enable attachments
 // import attachmentRoutes from "@/routes/attachmentRoutes";
+import apiKeyRoutes from "@/routes/apiKeyRoutes";
 import emailRoutes from "@/routes/emailRoutes";
 import { setupDocumentation } from "@/utils/docs";
 import { logError } from "@/utils/logger";
@@ -24,6 +25,8 @@ app.onError((err, c) => {
 app.route("/", emailRoutes);
 // R2 storage disabled - uncomment to enable attachments
 // app.route("/", attachmentRoutes);
+// API Key Management Routes (requires master key)
+app.route("/", apiKeyRoutes);
 // Health Check
 app.route("/", healthRoutes);
 

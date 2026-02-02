@@ -1,3 +1,4 @@
+import type { ApiKey } from "@/schemas/apiKeys";
 import type { Attachment, AttachmentSummary } from "@/schemas/attachments";
 import type { Email, EmailSummary } from "@/schemas/emails";
 
@@ -274,6 +275,144 @@ export class DatabaseService {
 		} catch (e: unknown) {
 			const error = e instanceof Error ? e : new Error(String(e));
 			return { results: [], error };
+		}
+	}
+
+	// API Key operations
+	async insertApiKey(apiKeyData: Omit<ApiKey, "last_used_at"> & { key_hash: string }) {
+		try {
+			const { success, error, meta } = await this.db
+				.prepare(
+					`INSERT INTO api_keys (id, key_hash, name, created_at, expires_at, is_active)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+				)
+				.bind(
+					apiKeyData.id,
+					apiKeyData.key_hash,
+					apiKeyData.name,
+					apiKeyData.created_at,
+					apiKeyData.expires_at,
+					apiKeyData.is_active ? 1 : 0,
+				)
+				.run();
+			return { success, error, meta };
+		} catch (e: unknown) {
+			const error = e instanceof Error ? e : new Error(String(e));
+			return { success: false, error: error, meta: undefined };
+		}
+	}
+
+	async getApiKeyByHash(keyHash: string) {
+		try {
+			const { results, error } = await this.db
+				.prepare(`SELECT * FROM api_keys WHERE key_hash = ? AND is_active = 1`)
+				.bind(keyHash)
+				.all();
+
+			if (results[0]) {
+				const apiKey = {
+					...results[0],
+					is_active: Boolean(results[0].is_active),
+				};
+				return { result: apiKey as ApiKey & { key_hash: string }, error };
+			}
+
+			return { result: undefined, error };
+		} catch (e: unknown) {
+			const error = e instanceof Error ? e : new Error(String(e));
+			return { result: undefined, error };
+		}
+	}
+
+	async getApiKeyById(keyId: string) {
+		try {
+			const { results, error } = await this.db
+				.prepare(`SELECT id, name, created_at, last_used_at, expires_at, is_active FROM api_keys WHERE id = ?`)
+				.bind(keyId)
+				.all();
+
+			if (results[0]) {
+				const apiKey = {
+					...results[0],
+					is_active: Boolean(results[0].is_active),
+				};
+				return { result: apiKey as ApiKey, error };
+			}
+
+			return { result: undefined, error };
+		} catch (e: unknown) {
+			const error = e instanceof Error ? e : new Error(String(e));
+			return { result: undefined, error };
+		}
+	}
+
+	async listApiKeys() {
+		try {
+			const { results, error } = await this.db
+				.prepare(`SELECT id, name, created_at, last_used_at, expires_at, is_active FROM api_keys ORDER BY created_at DESC`)
+				.all();
+
+			const processedResults = (results as any[]).map((key) => ({
+				...key,
+				is_active: Boolean(key.is_active),
+			}));
+
+			return { results: processedResults as ApiKey[], error };
+		} catch (e: unknown) {
+			const error = e instanceof Error ? e : new Error(String(e));
+			return { results: [], error };
+		}
+	}
+
+	async updateApiKeyLastUsed(keyId: string, timestamp: number) {
+		try {
+			const { success, error, meta } = await this.db
+				.prepare(`UPDATE api_keys SET last_used_at = ? WHERE id = ?`)
+				.bind(timestamp, keyId)
+				.run();
+			return { success, error, meta };
+		} catch (e: unknown) {
+			const error = e instanceof Error ? e : new Error(String(e));
+			return { success: false, error: error, meta: undefined };
+		}
+	}
+
+	async revokeApiKey(keyId: string) {
+		try {
+			const { success, error, meta } = await this.db
+				.prepare(`UPDATE api_keys SET is_active = 0 WHERE id = ?`)
+				.bind(keyId)
+				.run();
+			return { success, error, meta };
+		} catch (e: unknown) {
+			const error = e instanceof Error ? e : new Error(String(e));
+			return { success: false, error: error, meta: undefined };
+		}
+	}
+
+	async deleteApiKey(keyId: string) {
+		try {
+			const { meta, error } = await this.db
+				.prepare(`DELETE FROM api_keys WHERE id = ?`)
+				.bind(keyId)
+				.run();
+			return { meta, error };
+		} catch (e: unknown) {
+			const error = e instanceof Error ? e : new Error(String(e));
+			return { meta: undefined, error };
+		}
+	}
+
+	async deleteExpiredApiKeys(timestamp: number) {
+		try {
+			const { success, error, meta } = await this.db
+				.prepare(`DELETE FROM api_keys WHERE expires_at IS NOT NULL AND expires_at < ?`)
+				.bind(timestamp)
+				.run();
+			return { success, error, meta };
+		} catch (e: unknown) {
+			const error = e instanceof Error ? e : new Error(String(e));
+			return { success: false, error: error, meta: undefined };
 		}
 	}
 }
