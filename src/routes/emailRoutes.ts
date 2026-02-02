@@ -18,11 +18,18 @@ import {
 	getEmailsRoute,
 } from "@/schemas/emails/routeDefinitions";
 
+// Middleware imports
+import { apiKeyAuth } from "@/middlewares/apiKeyAuth";
+
 // Utility imports
 import { ERR, OK } from "@/utils/http";
 import { validateEmailDomain } from "@/utils/validation";
 
 const emailRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
+
+// Apply API key auth to email and inbox routes
+emailRoutes.use("/emails/*", apiKeyAuth);
+emailRoutes.use("/inbox/*", apiKeyAuth);
 
 // @ts-ignore - OpenAPI route handler type mismatch with error response status codes
 emailRoutes.openapi(getEmailsRoute, async (c) => {

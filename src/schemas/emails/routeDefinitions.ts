@@ -13,6 +13,7 @@ import {
 	notFoundErrorResponseSchema,
 	validationErrorResponseSchema,
 } from "./index";
+import { unauthorizedResponseSchema as authErrorSchema } from "@/schemas/apiKeys";
 
 // Get emails route
 export const getEmailsRoute = createRoute({
@@ -30,6 +31,14 @@ export const getEmailsRoute = createRoute({
 				},
 			},
 			description: "Successfully retrieved emails for the specified address",
+		},
+		401: {
+			content: {
+				"application/json": {
+					schema: authErrorSchema,
+				},
+			},
+			description: "Unauthorized - missing or invalid API key",
 		},
 		404: {
 			content: {
@@ -51,6 +60,7 @@ export const getEmailsRoute = createRoute({
 	tags: ["Emails"],
 	summary: "Get emails",
 	description: "Retrieve all emails for a specific email address with pagination.",
+	security: [{ apiKey: [] }],
 });
 
 // Get emails count route
@@ -68,6 +78,14 @@ export const getEmailsCountRoute = createRoute({
 				},
 			},
 			description: "Successfully retrieved the count of emails for the specified address",
+		},
+		401: {
+			content: {
+				"application/json": {
+					schema: authErrorSchema,
+				},
+			},
+			description: "Unauthorized - missing or invalid API key",
 		},
 		404: {
 			content: {
@@ -89,6 +107,7 @@ export const getEmailsCountRoute = createRoute({
 	tags: ["Emails"],
 	summary: "Get email count",
 	description: "Retrieve the total number of emails for a specific email address.",
+	security: [{ apiKey: [] }],
 });
 
 // Delete emails route
@@ -107,6 +126,14 @@ export const deleteEmailsRoute = createRoute({
 			},
 			description: "Successfully deleted all emails for the address",
 		},
+		401: {
+			content: {
+				"application/json": {
+					schema: authErrorSchema,
+				},
+			},
+			description: "Unauthorized - missing or invalid API key",
+		},
 		400: {
 			content: {
 				"application/json": {
@@ -119,6 +146,7 @@ export const deleteEmailsRoute = createRoute({
 	tags: ["Emails"],
 	summary: "Delete all emails",
 	description: "Delete all emails associated with the specified email address",
+	security: [{ apiKey: [] }],
 });
 
 // Get single email route
@@ -136,6 +164,14 @@ export const getEmailRoute = createRoute({
 				},
 			},
 			description: "Successfully retrieved email details",
+		},
+		401: {
+			content: {
+				"application/json": {
+					schema: authErrorSchema,
+				},
+			},
+			description: "Unauthorized - missing or invalid API key",
 		},
 		404: {
 			content: {
@@ -157,6 +193,7 @@ export const getEmailRoute = createRoute({
 	tags: ["Inbox"],
 	summary: "Get email inbox",
 	description: "Retrieve full email content including HTML and text by email ID",
+	security: [{ apiKey: [] }],
 });
 
 // Delete single email route
@@ -174,6 +211,14 @@ export const deleteEmailRoute = createRoute({
 				},
 			},
 			description: "Successfully deleted the email",
+		},
+		401: {
+			content: {
+				"application/json": {
+					schema: authErrorSchema,
+				},
+			},
+			description: "Unauthorized - missing or invalid API key",
 		},
 		404: {
 			content: {
@@ -195,6 +240,7 @@ export const deleteEmailRoute = createRoute({
 	tags: ["Inbox"],
 	summary: "Delete email inbox",
 	description: "Delete a specific inbox by its email ID",
+	security: [{ apiKey: [] }],
 });
 
 // Get domains route
