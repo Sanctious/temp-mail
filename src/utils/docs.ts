@@ -5,7 +5,7 @@ import { DOMAINS_SET } from "@/config/domains";
 
 export function setupDocumentation(app: OpenAPIHono<{ Bindings: CloudflareBindings }>) {
 	// OpenAPI Documentation
-	app.doc("/openapi.json", {
+	app.doc("/openapi.json", (c) => ({
 		openapi: "3.0.0",
 		info: {
 			version: "1.0.0",
@@ -57,8 +57,8 @@ ${`\n${Array.from(DOMAINS_SET)
 		},
 		servers: [
 			{
-				url: "https://api.barid.site",
-				description: "Production server",
+				url: new URL(c.req.url).origin,
+				description: "Current environment",
 			},
 		],
 		tags: [
@@ -81,7 +81,7 @@ ${`\n${Array.from(DOMAINS_SET)
 		],
 		"x-repository": "https://github.com/vwh/temp-mail",
 		"x-issues": "https://github.com/vwh/temp-mail/issues",
-	});
+	}));
 
 	// Register security schemes
 	app.openAPIRegistry.registerComponent("securitySchemes", "masterKey", {
