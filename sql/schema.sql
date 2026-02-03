@@ -4,10 +4,20 @@ CREATE TABLE IF NOT EXISTS emails (
     to_address TEXT NOT NULL,
     subject TEXT,
     received_at INTEGER NOT NULL,
+    expires_at INTEGER,
     html_content TEXT,
     text_content TEXT,
     has_attachments BOOLEAN DEFAULT FALSE,
     attachment_count INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS inboxes (
+    address TEXT PRIMARY KEY,
+    password_hash TEXT,
+    owner_api_key_id TEXT,
+    is_locked BOOLEAN DEFAULT FALSE,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (owner_api_key_id) REFERENCES api_keys (id)
 );
 
 CREATE TABLE IF NOT EXISTS attachments (

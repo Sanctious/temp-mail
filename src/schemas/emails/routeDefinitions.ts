@@ -1,19 +1,32 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import {
-	domainErrorResponseSchema,
-	domainsSuccessResponseSchema,
 	emailAddressParamSchema,
 	emailDeleteSuccessResponseSchema,
 	emailDetailSuccessResponseSchema,
 	emailIdParamSchema,
 	emailListSuccessResponseSchema,
 	emailQuerySchema,
-	emailsCountSuccessResponseSchema,
 	emailsDeleteSuccessResponseSchema,
-	notFoundErrorResponseSchema,
-	validationErrorResponseSchema,
+	errorResponseSchema,
+	domainsSuccessResponseSchema,
+	lockingRequestSchema,
+	lockingSuccessResponseSchema,
+	inboxStatusSuccessResponseSchema,
 } from "./index";
-import { unauthorizedResponseSchema as authErrorSchema } from "@/schemas/apiKeys";
+
+const apiKeyHeader = z.object({
+	"X-API-Key": z.string().openapi({
+		description: "API Key for authentication",
+		example: "your-api-key",
+	}),
+});
+
+const inboxPasswordHeader = z.object({
+	"x-inbox-password": z.string().optional().openapi({
+		description: "Password for locked inboxes",
+		example: "your-inbox-password",
+	}),
+});
 
 // Get emails route
 export const getEmailsRoute = createRoute({
@@ -22,6 +35,7 @@ export const getEmailsRoute = createRoute({
 	request: {
 		params: emailAddressParamSchema,
 		query: emailQuerySchema,
+		headers: inboxPasswordHeader,
 	},
 	responses: {
 		200: {
@@ -30,83 +44,19 @@ export const getEmailsRoute = createRoute({
 					schema: emailListSuccessResponseSchema,
 				},
 			},
-			description: "Successfully retrieved emails for the specified address",
+			description: "Successfully retrieved emails",
 		},
 		401: {
 			content: {
 				"application/json": {
-					schema: authErrorSchema,
+					schema: errorResponseSchema,
 				},
 			},
-			description: "Unauthorized - missing or invalid API key",
-		},
-		404: {
-			content: {
-				"application/json": {
-					schema: domainErrorResponseSchema,
-				},
-			},
-			description: "Domain not supported - returns list of supported domains",
-		},
-		400: {
-			content: {
-				"application/json": {
-					schema: validationErrorResponseSchema,
-				},
-			},
-			description: "Validation error - invalid email format",
+			description: "Unauthorized",
 		},
 	},
 	tags: ["Emails"],
 	summary: "Get emails",
-	description: "Retrieve all emails for a specific email address with pagination.",
-	security: [{ apiKey: [] }],
-});
-
-// Get emails count route
-export const getEmailsCountRoute = createRoute({
-	method: "get",
-	path: "/emails/count/{emailAddress}",
-	request: {
-		params: emailAddressParamSchema,
-	},
-	responses: {
-		200: {
-			content: {
-				"application/json": {
-					schema: emailsCountSuccessResponseSchema,
-				},
-			},
-			description: "Successfully retrieved the count of emails for the specified address",
-		},
-		401: {
-			content: {
-				"application/json": {
-					schema: authErrorSchema,
-				},
-			},
-			description: "Unauthorized - missing or invalid API key",
-		},
-		404: {
-			content: {
-				"application/json": {
-					schema: domainErrorResponseSchema,
-				},
-			},
-			description: "Domain not supported - returns list of supported domains",
-		},
-		400: {
-			content: {
-				"application/json": {
-					schema: validationErrorResponseSchema,
-				},
-			},
-			description: "Validation error - invalid email format",
-		},
-	},
-	tags: ["Emails"],
-	summary: "Get email count",
-	description: "Retrieve the total number of emails for a specific email address.",
 	security: [{ apiKey: [] }],
 });
 
@@ -116,6 +66,7 @@ export const deleteEmailsRoute = createRoute({
 	path: "/emails/{emailAddress}",
 	request: {
 		params: emailAddressParamSchema,
+		headers: inboxPasswordHeader,
 	},
 	responses: {
 		200: {
@@ -124,28 +75,19 @@ export const deleteEmailsRoute = createRoute({
 					schema: emailsDeleteSuccessResponseSchema,
 				},
 			},
-			description: "Successfully deleted all emails for the address",
+			description: "Successfully deleted emails",
 		},
 		401: {
 			content: {
 				"application/json": {
-					schema: authErrorSchema,
+					schema: errorResponseSchema,
 				},
 			},
-			description: "Unauthorized - missing or invalid API key",
-		},
-		400: {
-			content: {
-				"application/json": {
-					schema: validationErrorResponseSchema,
-				},
-			},
-			description: "Validation error - invalid email format",
+			description: "Unauthorized",
 		},
 	},
 	tags: ["Emails"],
 	summary: "Delete all emails",
-	description: "Delete all emails associated with the specified email address",
 	security: [{ apiKey: [] }],
 });
 
@@ -155,6 +97,7 @@ export const getEmailRoute = createRoute({
 	path: "/inbox/{emailId}",
 	request: {
 		params: emailIdParamSchema,
+		headers: inboxPasswordHeader,
 	},
 	responses: {
 		200: {
@@ -168,31 +111,22 @@ export const getEmailRoute = createRoute({
 		401: {
 			content: {
 				"application/json": {
-					schema: authErrorSchema,
+					schema: errorResponseSchema,
 				},
 			},
-			description: "Unauthorized - missing or invalid API key",
+			description: "Unauthorized",
 		},
 		404: {
 			content: {
 				"application/json": {
-					schema: notFoundErrorResponseSchema,
+					schema: errorResponseSchema,
 				},
 			},
 			description: "Email not found",
 		},
-		400: {
-			content: {
-				"application/json": {
-					schema: validationErrorResponseSchema,
-				},
-			},
-			description: "Validation error - invalid email ID format",
-		},
 	},
 	tags: ["Inbox"],
-	summary: "Get email inbox",
-	description: "Retrieve full email content including HTML and text by email ID",
+	summary: "Get email",
 	security: [{ apiKey: [] }],
 });
 
@@ -202,6 +136,7 @@ export const deleteEmailRoute = createRoute({
 	path: "/inbox/{emailId}",
 	request: {
 		params: emailIdParamSchema,
+		headers: inboxPasswordHeader,
 	},
 	responses: {
 		200: {
@@ -210,36 +145,19 @@ export const deleteEmailRoute = createRoute({
 					schema: emailDeleteSuccessResponseSchema,
 				},
 			},
-			description: "Successfully deleted the email",
+			description: "Successfully deleted email",
 		},
 		401: {
 			content: {
 				"application/json": {
-					schema: authErrorSchema,
+					schema: errorResponseSchema,
 				},
 			},
-			description: "Unauthorized - missing or invalid API key",
-		},
-		404: {
-			content: {
-				"application/json": {
-					schema: notFoundErrorResponseSchema,
-				},
-			},
-			description: "Email not found",
-		},
-		400: {
-			content: {
-				"application/json": {
-					schema: validationErrorResponseSchema,
-				},
-			},
-			description: "Validation error - invalid email ID format",
+			description: "Unauthorized",
 		},
 	},
 	tags: ["Inbox"],
-	summary: "Delete email inbox",
-	description: "Delete a specific inbox by its email ID",
+	summary: "Delete email",
 	security: [{ apiKey: [] }],
 });
 
@@ -254,10 +172,107 @@ export const getDomainsRoute = createRoute({
 					schema: domainsSuccessResponseSchema,
 				},
 			},
-			description: "List of all supported email domains",
+			description: "List of supported domains",
 		},
 	},
-	tags: ["Domains"],
+	tags: ["System"],
 	summary: "Get supported domains",
-	description: "Retrieve a list of all supported email domains",
 });
+
+// Locking route
+export const lockInboxRoute = createRoute({
+	method: "post",
+	path: "/inbox/{emailAddress}/lock",
+	request: {
+		params: emailAddressParamSchema,
+		body: {
+			content: {
+				"application/json": {
+					schema: z.object({ password: z.string().min(8) }),
+				},
+			},
+		},
+	},
+	responses: {
+		200: {
+			content: {
+				"application/json": {
+					schema: lockingSuccessResponseSchema,
+				},
+			},
+			description: "Successfully locked inbox",
+		},
+		401: {
+			content: {
+				"application/json": {
+					schema: errorResponseSchema,
+				},
+			},
+			description: "Unauthorized",
+		},
+	},
+	tags: ["Inbox"],
+	summary: "Lock inbox with password",
+	security: [{ apiKey: [] }],
+});
+
+// Unlocking route
+export const unlockInboxRoute = createRoute({
+	method: "post",
+	path: "/inbox/{emailAddress}/unlock",
+	request: {
+		params: emailAddressParamSchema,
+	},
+	responses: {
+		200: {
+			content: {
+				"application/json": {
+					schema: lockingSuccessResponseSchema,
+				},
+			},
+			description: "Successfully unlocked inbox",
+		},
+		401: {
+			content: {
+				"application/json": {
+					schema: errorResponseSchema,
+				},
+			},
+			description: "Unauthorized - wrong API key",
+		},
+	},
+	tags: ["Inbox"],
+	summary: "Unlock inbox",
+	security: [{ apiKey: [] }],
+});
+
+// Status route
+export const getInboxStatusRoute = createRoute({
+	method: "get",
+	path: "/inbox/{emailAddress}/status",
+	request: {
+		params: emailAddressParamSchema,
+	},
+	responses: {
+		200: {
+			content: {
+				"application/json": {
+					schema: inboxStatusSuccessResponseSchema,
+				},
+			},
+			description: "Successfully retrieved inbox status",
+		},
+		401: {
+			content: {
+				"application/json": {
+					schema: errorResponseSchema,
+				},
+			},
+			description: "Unauthorized",
+		},
+	},
+	tags: ["Inbox"],
+	summary: "Check if inbox is locked",
+	security: [{ apiKey: [] }],
+});
+

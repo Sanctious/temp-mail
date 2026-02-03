@@ -14,94 +14,143 @@ import {
 	deleteEmailsRoute,
 	getDomainsRoute,
 	getEmailRoute,
-	getEmailsCountRoute,
 	getEmailsRoute,
+	lockInboxRoute,
+	unlockInboxRoute,
+	getInboxStatusRoute,
 } from "@/schemas/emails/routeDefinitions";
 
 // Middleware imports
 import { apiKeyAuth } from "@/middlewares/apiKeyAuth";
+import { inboxLockAuth } from "@/middlewares/inboxLockAuth";
 
 // Utility imports
 import { ERR, OK } from "@/utils/http";
 import { validateEmailDomain } from "@/utils/validation";
 
-const emailRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings }>();
+const emailRoutes = new OpenAPIHono<{ Bindings: CloudflareBindings; Variables: { apiKeyId: string } }>();
 
 // Apply API key auth to email and inbox routes
 emailRoutes.use("/emails/*", apiKeyAuth);
 emailRoutes.use("/inbox/*", apiKeyAuth);
 
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+// Apply inbox lock auth to specific routes
+emailRoutes.use("/emails/:emailAddress", inboxLockAuth);
+emailRoutes.use("/inbox/:emailId", inboxLockAuth);
+
+// --- Route Handlers ---
+
+// @ts-ignore
 emailRoutes.openapi(getEmailsRoute, async (c) => {
 	const { emailAddress } = c.req.valid("param");
-	const { limit, offset } = c.req.valid("query");
+	const { limit, cursor } = c.req.valid("query");
 
 	const domainValidation = validateEmailDomain(emailAddress);
-	if (!domainValidation.valid) return c.json(domainValidation.error, 404);
+	if (!domainValidation.valid) return c.json(ERR("Domain not supported"), 404);
 
 	const dbService = createDatabaseService(c.env.D1);
-	const { results, error } = await dbService.getEmailsByRecipient(emailAddress, limit, offset);
+	const { results, nextCursor, error } = await dbService.getEmailsByRecipient(emailAddress, limit, cursor);
+	const { result: status } = await dbService.getInboxStatus(emailAddress);
 
-	if (error) return c.json(ERR(error.message, "D1Error"), 500);
-	return c.json(OK(results));
+	if (error) return c.json(ERR("Database error"), 500);
+
+	return c.json(OK({
+		items: results,
+		nextCursor,
+		locked: status.locked,
+		isPrivate: status.isPrivate,
+	}));
 });
 
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
-emailRoutes.openapi(getEmailsCountRoute, async (c) => {
-	const { emailAddress } = c.req.valid("param");
-
-	const domainValidation = validateEmailDomain(emailAddress);
-	if (!domainValidation.valid) return c.json(domainValidation.error, 404);
-
-	const dbService = createDatabaseService(c.env.D1);
-	const { count, error } = await dbService.countEmailsByRecipient(emailAddress);
-
-	if (error) return c.json(ERR(error.message, "D1Error"), 500);
-	return c.json(OK({ count }));
-});
-
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+// @ts-ignore
 emailRoutes.openapi(deleteEmailsRoute, async (c) => {
 	const { emailAddress } = c.req.valid("param");
 
 	const domainValidation = validateEmailDomain(emailAddress);
-	if (!domainValidation.valid) return c.json(domainValidation.error, 404);
+	if (!domainValidation.valid) return c.json(ERR("Domain not supported"), 404);
 
 	const dbService = createDatabaseService(c.env.D1);
 	const { meta, error } = await dbService.deleteEmailsByRecipient(emailAddress);
 
-	if (error) return c.json(ERR(error.message, "D1Error"), 500);
-	if (meta && meta.changes === 0)
-		return c.json(ERR("No emails found for deletion", "NotFound"), 404);
-	return c.json(OK({ message: "Emails deleted successfully", deleted_count: meta?.changes }));
+	if (error) return c.json(ERR("Database error"), 500);
+	return c.json(OK({ deletedCount: meta?.changes || 0 }));
 });
 
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+// @ts-ignore
 emailRoutes.openapi(getEmailRoute, async (c) => {
 	const { emailId } = c.req.valid("param");
 	const dbService = createDatabaseService(c.env.D1);
 	const { result, error } = await dbService.getEmailById(emailId);
 
-	if (error) return c.json(ERR(error.message, "D1Error"), 500);
-	if (!result) return c.json(ERR("Email not found", "NotFound"), 404);
+	if (error) return c.json(ERR("Database error"), 500);
+	if (!result) return c.json(ERR("Email not found"), 404);
 	return c.json(OK(result));
 });
 
-// @ts-ignore - OpenAPI route handler type mismatch with error response status codes
+// @ts-ignore
 emailRoutes.openapi(deleteEmailRoute, async (c) => {
 	const { emailId } = c.req.valid("param");
 	const dbService = createDatabaseService(c.env.D1);
 	const { meta, error } = await dbService.deleteEmailById(emailId);
 
-	if (error) return c.json(ERR(error.message, "D1Error"), 500);
-	if (meta && meta.changes === 0) return c.json(ERR("Email not found", "NotFound"), 404);
+	if (error) return c.json(ERR("Database error"), 500);
+	if (meta && meta.changes === 0) return c.json(ERR("Email not found"), 404);
 	return c.json(OK({ message: "Email deleted successfully" }));
 });
 
+// @ts-ignore
 emailRoutes.openapi(getDomainsRoute, async (c) => {
-	c.header("Cache-Control", `public, max-age=${CACHE.DOMAINS_TTL}`);
-	c.header("ETag", `"domains-${DOMAINS_SET.size}"`);
-	return c.json(OK(Array.from(DOMAINS_SET)));
+	const domains = Array.from(DOMAINS_SET);
+	return c.json(OK({
+		public: domains,
+		temp: [],
+		stats: {
+			public: domains.length,
+			temp: 0,
+			private: 0, // Could be calculated if needed
+		},
+	}));
+});
+
+// @ts-ignore
+emailRoutes.openapi(lockInboxRoute, async (c) => {
+	const { emailAddress } = c.req.valid("param");
+	const { password } = c.req.valid("json");
+	const apiKeyId = c.get("apiKeyId");
+
+	const dbService = createDatabaseService(c.env.D1);
+	const { success, error } = await dbService.lockInbox(emailAddress, password, apiKeyId);
+
+	if (error) return c.json(ERR("Failed to lock inbox"), 500);
+	return c.json(OK({ message: "Inbox locked successfully" }));
+});
+
+// @ts-ignore
+emailRoutes.openapi(unlockInboxRoute, async (c) => {
+	const { emailAddress } = c.req.valid("param");
+	const apiKeyId = c.get("apiKeyId");
+
+	const dbService = createDatabaseService(c.env.D1);
+	const { result: inbox } = await dbService.getInboxDetails(emailAddress);
+
+	if (!inbox) return c.json(ERR("Inbox not found"), 404);
+	if (inbox.owner_api_key_id !== apiKeyId) {
+		return c.json(ERR("Only the API key that locked this inbox can unlock it"), 401);
+	}
+
+	const { success, error } = await dbService.unlockInbox(emailAddress);
+	if (error) return c.json(ERR("Failed to unlock inbox"), 500);
+	return c.json(OK({ message: "Inbox unlocked successfully" }));
+});
+
+// @ts-ignore
+emailRoutes.openapi(getInboxStatusRoute, async (c) => {
+	const { emailAddress } = c.req.valid("param");
+	const dbService = createDatabaseService(c.env.D1);
+	const { result, error } = await dbService.getInboxStatus(emailAddress);
+
+	if (error) return c.json(ERR("Database error"), 500);
+	return c.json(OK(result));
 });
 
 export default emailRoutes;

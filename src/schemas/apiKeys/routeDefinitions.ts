@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { validationErrorResponseSchema } from "@/schemas/emails";
+import { errorResponseSchema } from "@/schemas/emails";
 import {
 	apiKeyCreatedResponseSchema,
 	apiKeyDeletedResponseSchema,
@@ -37,7 +37,7 @@ export const createApiKeyRoute = createRoute({
 		400: {
 			content: {
 				"application/json": {
-					schema: validationErrorResponseSchema,
+					schema: errorResponseSchema,
 				},
 			},
 			description: "Validation error - invalid request body",
