@@ -43,7 +43,7 @@ export const emailSchema = z
 		id: z.string().openapi({
 			description: "The unique identifier for the email.",
 		}),
-		fromAddress: z.string().email().openapi({
+		fromAddress: z.string().openapi({
 			description: "The sender's email address.",
 		}),
 		toAddress: z.string().email().openapi({
@@ -78,7 +78,7 @@ export const emailSummarySchema = z
 		id: z.string().openapi({
 			description: "The unique identifier for the email.",
 		}),
-		fromAddress: z.string().email().openapi({
+		fromAddress: z.string().openapi({
 			description: "The sender's email address.",
 		}),
 		toAddress: z.string().email().openapi({
